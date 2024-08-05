@@ -1,13 +1,17 @@
-# Sample Hardhat Project
+# Clownfish Finance Contract
+An innovative DeFi platform designed to provide comprehensive credit account management and leveraged trading capabilities.
+### A Guide to Getting Started
+1. Install Dependencies  
+`npm install`
+2. Compile Contracts  
+`npx hardhat compile`
+3. Run Tests
+`npx hardhat test`
+### framework
+![image](https://github.com/user-attachments/assets/89cb77d6-6cac-4da9-ab73-4257a797d06a)
+### document
+- [hardhat](https://hardhat.org/hardhat-runner/docs/getting-started#overview)
 
-This project demonstrates a basic Hardhat use case. It comes with a sample contract, a test for that contract, and a Hardhat Ignition module that deploys that contract.
 
-Try running some of the following tasks:
 
-```shell
-npx hardhat help
-npx hardhat test
-REPORT_GAS=true npx hardhat test
-npx hardhat node
-npx hardhat ignition deploy ./ignition/modules/Lock.js
-```
+
