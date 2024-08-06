@@ -1,6 +1,9 @@
 node_modules
 .env
 
+# Solidity Compile Version
+settings.json
+
 # Hardhat files
 /cache
 /artifacts
