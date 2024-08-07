@@ -24,10 +24,7 @@ interface IAccountFactory {
         address masterCreditAccount
     );
 
-    function takeCreditAccount(
-        uint256,
-        uint256
-    ) external returns (address creditAccount);
+    function takeCreditAccount() external returns (address creditAccount);
 
     function returnCreditAccount(address creditAccount) external;
 
