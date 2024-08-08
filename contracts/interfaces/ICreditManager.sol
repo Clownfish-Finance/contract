@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT 
+// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
 address constant INACTIVE_CREDIT_ACCOUNT_ADDRESS = address(1);
@@ -45,11 +45,11 @@ struct CreditAccountInfo {
 }
 
 struct CollateralTokenData {
-    address token;
-    uint16 ltInitial;
-    uint16 ltFinal;
-    uint40 timestampRampStart;
-    uint24 rampDuration;
+    address token; // The address of the collateral token.
+    // uint16 ltInitial;          // Initial liquidation threshold (in basis points).
+    // uint16 ltFinal;            // Final liquidation threshold (in basis points) after the ramp period.
+    // uint40 timestampRampStart; // The start timestamp for the ramp period when the liquidation threshold starts changing.
+    // uint24 rampDuration;       // Duration (in seconds) over which the liquidation threshold changes from ltInitial to ltFinal.
 }
 
 struct CollateralDebtData {
@@ -69,6 +69,11 @@ struct CollateralDebtData {
     address _poolQuotaKeeper;
 }
 
+struct RevocationPair {
+    address spender;
+    address token;
+}
+
 interface ICreditManager {
     /// @notice Thrown when attempting to close an account with non-zero debt
     error CloseAccountWithNonZeroDebtException();
@@ -78,6 +83,20 @@ interface ICreditManager {
     error CallerNotConfiguratorException();
     /// @notice Thrown on attempting to call an access restricted function not as credit facade
     error CallerNotCreditFacadeException();
+    /// @notice Thrown on attempting to receive a token that is not a collateral token or was forbidden
+    error TokenNotAllowedException();
+    /// @notice Thrown on attempting to set an important address to zero address
+    error ZeroAddressException();
+    /// @notice Thrown on attempting to call an access restricted function not as allowed adapter
+    error CallerNotAdapterException();
+    /// @notice Thrown when attempting to execute a protocol interaction without active credit account set
+    error ActiveCreditAccountNotSetException();
+    /// @notice Thrown when Credit Facade tries to write over a non-zero active Credit Account
+    error ActiveCreditAccountOverridenException();
+    /// @notice Thrown on failing a full collateral check after multicall
+    error NotEnoughCollateralException();
+    /// @notice Thrown if more than the maximum number of tokens were enabled on a credit account
+    error TooManyEnabledTokensException();
 
     function openCreditAccount(address onBehalfOf) external returns (address);
 
@@ -97,4 +116,59 @@ interface ICreditManager {
         );
 
     function setCreditFacade(address _creditFacade) external;
+
+    function addCollateral(
+        address payer,
+        address creditAccount,
+        address token,
+        uint256 amount
+    ) external returns (uint256);
+
+    function getTokenMaskOrRevert(
+        address token
+    ) external returns (uint256 tokenMask);
+
+    function withdrawCollateral(
+        address creditAccount,
+        address token,
+        uint256 amount,
+        address to
+    ) external returns (uint256);
+
+    function externalCall(
+        address creditAccount,
+        address target,
+        bytes calldata callData
+    ) external returns (bytes memory result);
+
+    function approveToken(
+        address creditAccount,
+        address token,
+        address spender,
+        uint256 amount
+    ) external;
+
+    function revokeAdapterAllowances(
+        address creditAccount,
+        RevocationPair[] calldata revocations
+    ) external;
+
+    function approveCreditAccount(address token, uint256 amount) external;
+
+    function getActiveCreditAccountOrRevert()
+        external
+        returns (address creditAccount);
+
+    function execute(
+        bytes calldata data
+    ) external returns (bytes memory result);
+
+    function setActiveCreditAccount(address creditAccount) external;
+
+    function fullCollateralCheck(
+        address creditAccount,
+        uint256 enabledTokensMask,
+        uint256[] calldata collateralHints,
+        uint16 minHealthFactor
+    ) external returns (uint256 enabledTokensMaskAfter);
 }

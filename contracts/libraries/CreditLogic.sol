@@ -1,6 +1,4 @@
-// SPDX-License-Identifier: BUSL-1.1
-// Gearbox Protocol. Generalized leverage for DeFi protocols
-// (c) Gearbox Foundation, 2023.
+// SPDX-License-Identifier: MIT 
 pragma solidity ^0.8.17;
 
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";

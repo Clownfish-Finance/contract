@@ -1,9 +1,9 @@
-
+// SPDX-License-Identifier: MIT 
 pragma solidity ^0.8.17;
 
+import "../interfaces/ICreditManager.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-
 
 /// @title Collateral logic Library
 /// @notice Implements functions that compute value of collateral on a credit account
@@ -21,12 +21,11 @@ library CollateralLogic {
     /// @return twvUSD The total weighted value in USD
     /// @return tokensToDisable The mask of tokens to disable
     function calcCollateral(
+        CollateralDebtData memory collateralDebtData,
         address creditAccount,
         uint256 twvUSDTarget,
         uint256[] memory collateralHints,
-        function(uint256, bool)
-            view
-            returns (address, uint16) collateralTokenByMaskFn,
+        function(uint256) view returns (address) collateralTokenByMaskFn,
         function(address, uint256, address)
             view
             returns (uint256) convertToUSDFn,
@@ -74,9 +73,7 @@ library CollateralLogic {
         function(address, uint256, address)
             view
             returns (uint256) convertToUSDFn,
-        function(uint256, bool)
-            view
-            returns (address, uint16) collateralTokenByMaskFn,
+        function(uint256) view returns (address) collateralTokenByMaskFn,
         uint256 tokensToCheckMask,
         address priceOracle
     )
@@ -147,9 +144,7 @@ library CollateralLogic {
         function(address, uint256, address)
             view
             returns (uint256) convertToUSDFn,
-        function(uint256, bool)
-            view
-            returns (address, uint16) collateralTokenByMaskFn,
+        function(uint256) view returns (address) collateralTokenByMaskFn,
         uint256 tokenMask,
         address priceOracle
     )
@@ -161,17 +156,13 @@ library CollateralLogic {
             bool nonZeroBalance
         )
     {
-        (address token, uint16 liquidationThreshold) = collateralTokenByMaskFn(
-            tokenMask,
-            true
-        ); // Get token address and liquidation threshold
+        address token = collateralTokenByMaskFn(tokenMask); // Get token address and liquidation threshold
 
         // Calculate collateral for one token
-        (valueUSD, weightedValueUSD, nonZeroBalance) = calcOneTokenCollateral({
+        (valueUSD, nonZeroBalance) = calcOneTokenCollateral({
             priceOracle: priceOracle,
             creditAccount: creditAccount,
             token: token,
-            liquidationThreshold: liquidationThreshold,
             convertToUSDFn: convertToUSDFn
         });
     }
@@ -180,10 +171,8 @@ library CollateralLogic {
     /// @param priceOracle The address of the price oracle
     /// @param creditAccount The address of the credit account
     /// @param token The address of the token
-    /// @param liquidationThreshold The liquidation threshold of the token
     /// @param convertToUSDFn Function to convert token value to USD
     /// @return valueUSD The collateral value in USD
-    /// @return weightedValueUSD The weighted collateral value in USD
     /// @return nonZeroBalance True if the token balance is non-zero
     function calcOneTokenCollateral(
         address creditAccount,
@@ -191,14 +180,12 @@ library CollateralLogic {
             view
             returns (uint256) convertToUSDFn,
         address priceOracle,
-        address token,
-        uint16 liquidationThreshold
+        address token
     )
         internal
         view
         returns (
             uint256 valueUSD,
-            uint256 weightedValueUSD,
             bool nonZeroBalance
         )
     {
@@ -208,7 +195,6 @@ library CollateralLogic {
             unchecked {
                 valueUSD = convertToUSDFn(priceOracle, balance - 1, token); // Convert token balance to USD
             }
-            weightedValueUSD = (valueUSD * liquidationThreshold) / 10000; // Calculate weighted value
             nonZeroBalance = true; // Set non-zero balance flag
         }
     }

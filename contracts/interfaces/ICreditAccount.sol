@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT 
+// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
 interface ICreditAccount {
@@ -17,4 +17,5 @@ interface ICreditAccount {
         bytes calldata data
     ) external returns (bytes memory result);
 
+    
 }
