@@ -1,11 +1,14 @@
-// SPDX-License-Identifier: MIT 
+// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.17;
 
-import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
-import {IERC20Permit} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol";
+// import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
+// import {IERC20Permit} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol";
+uint256 constant WAD = 1e18;
+uint256 constant RAY = 1e27;
+uint16 constant PERCENTAGE_FACTOR = 1e4; //percentage plus two decimals
 
 /// @title Pool  interface
-interface IPool is IERC4626, IERC20Permit {
+interface IPool {
     /// @notice Emitted when depositing liquidity with referral code
     event Refer(
         address indexed onBehalfOf,
@@ -48,6 +51,8 @@ interface IPool is IERC4626, IERC20Permit {
         address indexed creditManager,
         uint256 newLimit
     );
+    /// @notice Thrown when a credit manager attempts to borrow more than its limit in the current block, or in general
+    error CreditManagerCantBorrowException();
 
     /// @notice Emitted when new withdrawal fee is set
     event SetWithdrawFee(uint256 fee);

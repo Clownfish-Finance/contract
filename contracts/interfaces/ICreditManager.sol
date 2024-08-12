@@ -46,10 +46,10 @@ struct CreditAccountInfo {
 
 struct CollateralTokenData {
     address token; // The address of the collateral token.
-    // uint16 ltInitial;          // Initial liquidation threshold (in basis points).
-    // uint16 ltFinal;            // Final liquidation threshold (in basis points) after the ramp period.
-    // uint40 timestampRampStart; // The start timestamp for the ramp period when the liquidation threshold starts changing.
-    // uint24 rampDuration;       // Duration (in seconds) over which the liquidation threshold changes from ltInitial to ltFinal.
+    uint16 ltInitial;          // Initial liquidation threshold (in basis points).
+    uint16 ltFinal;            // Final liquidation threshold (in basis points) after the ramp period.
+    uint40 timestampRampStart; // The start timestamp for the ramp period when the liquidation threshold starts changing.
+    uint24 rampDuration;       // Duration (in seconds) over which the liquidation threshold changes from ltInitial to ltFinal.
 }
 
 struct CollateralDebtData {
@@ -97,10 +97,43 @@ interface ICreditManager {
     error NotEnoughCollateralException();
     /// @notice Thrown if more than the maximum number of tokens were enabled on a credit account
     error TooManyEnabledTokensException();
+    /// @notice Thrown on incorrect input parameter
+    error IncorrectParameterException();
+    /// @notice Thrown on attempting to perform an action for a credit account that does not exist
+    error CreditAccountDoesNotExistException();
+    /// @notice Thrown on attempting to add a token that is already in a collateral list
+    error TokenAlreadyAddedException();
+    /// @notice Thrown on configurator attempting to add more than 255 collateral tokens
+    error TooManyTokensException();
+
+    function pool() external view returns (address);
+
+    function underlying() external view returns (address);
+
+    function creditFacade() external view returns (address);
+
+    function creditConfigurator() external view returns (address);
+
+    function addressProvider() external view returns (address);
+
+    function accountFactory() external view returns (address);
+
+    function name() external view returns (string memory);
+
+    // ------------------ //
+    // ACCOUNT MANAGEMENT //
+    // ------------------ //
 
     function openCreditAccount(address onBehalfOf) external returns (address);
 
     function closeCreditAccount(address creditAccount) external;
+
+    // function liquidateCreditAccount(
+    //     address creditAccount,
+    //     CollateralDebtData calldata collateralDebtData,
+    //     address to,
+    //     bool isExpired
+    // ) external returns (uint256 remainingFunds, uint256 loss);
 
     function manageDebt(
         address creditAccount,
@@ -115,25 +148,19 @@ interface ICreditManager {
             uint256 tokensToDisable
         );
 
-    function setCreditFacade(address _creditFacade) external;
-
     function addCollateral(
         address payer,
         address creditAccount,
         address token,
         uint256 amount
-    ) external returns (uint256);
-
-    function getTokenMaskOrRevert(
-        address token
-    ) external returns (uint256 tokenMask);
+    ) external returns (uint256 tokensToEnable);
 
     function withdrawCollateral(
         address creditAccount,
         address token,
         uint256 amount,
         address to
-    ) external returns (uint256);
+    ) external returns (uint256 tokensToDisable);
 
     function externalCall(
         address creditAccount,
@@ -153,22 +180,194 @@ interface ICreditManager {
         RevocationPair[] calldata revocations
     ) external;
 
-    function approveCreditAccount(address token, uint256 amount) external;
+    // -------- //
+    // ADAPTERS //
+    // -------- //
 
-    function getActiveCreditAccountOrRevert()
-        external
-        returns (address creditAccount);
+    function adapterToContract(
+        address adapter
+    ) external view returns (address targetContract);
+
+    function contractToAdapter(
+        address targetContract
+    ) external view returns (address adapter);
 
     function execute(
         bytes calldata data
     ) external returns (bytes memory result);
 
+    function approveCreditAccount(address token, uint256 amount) external;
+
     function setActiveCreditAccount(address creditAccount) external;
+
+    function getActiveCreditAccountOrRevert()
+        external
+        view
+        returns (address creditAccount);
+
+    // ----------------- //
+    // COLLATERAL CHECKS //
+    // ----------------- //
+
+    function priceOracle() external view returns (address);
 
     function fullCollateralCheck(
         address creditAccount,
         uint256 enabledTokensMask,
-        uint256[] calldata collateralHints,
-        uint16 minHealthFactor
-    ) external returns (uint256 enabledTokensMaskAfter);
+        uint256[] calldata collateralHints
+    )
+        external
+        returns (
+            // uint16 minHealthFactor,
+            // bool useSafePrices
+            uint256 enabledTokensMaskAfter
+        );
+
+    // function isLiquidatable(
+    //     address creditAccount,
+    //     uint16 minHealthFactor
+    // ) external view returns (bool);
+
+    function calcDebtAndCollateral(
+        address creditAccount,
+        CollateralCalcTask task
+    ) external returns (CollateralDebtData memory cdd);
+
+    // ------ //
+    // QUOTAS //
+    // ------ //
+
+    // function poolQuotaKeeper() external view returns (address);
+
+    function quotedTokensMask() external view returns (uint256);
+
+    // function updateQuota(address creditAccount, address token, int96 quotaChange, uint96 minQuota, uint96 maxQuota)
+    //     external
+    //     returns (uint256 tokensToEnable, uint256 tokensToDisable);
+
+    // --------------------- //
+    // CREDIT MANAGER PARAMS //
+    // --------------------- //
+
+    function maxEnabledTokens() external view returns (uint8);
+
+    function fees()
+        external
+        view
+        returns (
+            uint16 feeInterest,
+            uint16 feeLiquidation,
+            uint16 liquidationDiscount,
+            uint16 feeLiquidationExpired,
+            uint16 liquidationDiscountExpired
+        );
+
+    function collateralTokensCount() external view returns (uint8);
+
+    function getTokenMaskOrRevert(
+        address token
+    ) external view returns (uint256 tokenMask);
+
+    function getTokenByMask(
+        uint256 tokenMask
+    ) external view returns (address token);
+
+    // function liquidationThresholds(
+    //     address token
+    // ) external view returns (uint16 lt);
+
+    function ltParams(
+        address token
+    )
+        external
+        view
+        returns (
+            uint16 ltInitial,
+            uint16 ltFinal,
+            uint40 timestampRampStart,
+            uint24 rampDuration
+        );
+
+    function collateralTokenByMask(
+        uint256 tokenMask
+    ) external view returns (address token);
+
+    // ------------ //
+    // ACCOUNT INFO //
+    // ------------ //
+
+    function creditAccountInfo(
+        address creditAccount
+    )
+        external
+        view
+        returns (
+            uint256 debt,
+            uint256 cumulativeIndexLastUpdate,
+            uint128 cumulativeQuotaInterest,
+            uint128 quotaFees,
+            uint256 enabledTokensMask,
+            uint16 flags,
+            uint64 lastDebtUpdate,
+            address borrower
+        );
+
+    function getBorrowerOrRevert(
+        address creditAccount
+    ) external view returns (address borrower);
+
+    // function flagsOf(address creditAccount) external view returns (uint16);
+
+    // function setFlagFor(address creditAccount, uint16 flag, bool value) external;
+
+    function enabledTokensMaskOf(
+        address creditAccount
+    ) external view returns (uint256);
+
+    function creditAccounts() external view returns (address[] memory);
+
+    function creditAccounts(
+        uint256 offset,
+        uint256 limit
+    ) external view returns (address[] memory);
+
+    function creditAccountsLen() external view returns (uint256);
+
+    // ------------- //
+    // CONFIGURATION //
+    // ------------- //
+
+    function addToken(address token) external;
+
+    function setCollateralTokenData(
+        address token,
+        uint16 ltInitial,
+        uint16 ltFinal,
+        uint40 timestampRampStart,
+        uint24 rampDuration
+    ) external;
+
+    function setFees(
+        uint16 feeInterest,
+        uint16 feeLiquidation,
+        uint16 liquidationDiscount,
+        uint16 feeLiquidationExpired,
+        uint16 liquidationDiscountExpired
+    ) external;
+
+    // Exclusion of base tokens
+    // function setQuotedMask(uint256 quotedTokensMask) external;
+
+    function setMaxEnabledTokens(uint8 maxEnabledTokens) external;
+
+    function setContractAllowance(
+        address adapter,
+        address targetContract
+    ) external;
+
+    function setCreditFacade(address) external;
+
+    function setPriceOracle(address priceOracle) external;
+
+    // function setCreditConfigurator(address creditConfigurator) external;
 }

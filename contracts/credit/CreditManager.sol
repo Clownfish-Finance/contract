@@ -136,6 +136,10 @@ contract CreditManager is ICreditManager, ReentrancyGuard {
         name = _name;
     }
 
+    // ------------------ //
+    // ACCOUNT MANAGEMENT //
+    // ------------------ //
+
     /// @notice Opens a new credit account
     /// @param onBehalfOf Owner of a newly opened credit account
     /// @return creditAccount Address of the newly opened credit account
@@ -221,7 +225,6 @@ contract CreditManager is ICreditManager, ReentrancyGuard {
             creditAccount: creditAccount,
             enabledTokensMask: enabledTokensMask,
             collateralHints: collateralHints,
-            minHealthFactor: PERCENTAGE_FACTOR,
             task: CollateralCalcTask.GENERIC_PARAMS
         });
 
@@ -467,15 +470,13 @@ contract CreditManager is ICreditManager, ReentrancyGuard {
     /// @param enabledTokensMask Bitmask of account's enabled collateral tokens
     /// @param collateralHints Optional array of token masks to check first to reduce the amount of computation
     ///        when known subset of account's collateral tokens covers all the debt
-    /// @param minHealthFactor Health factor threshold in bps, the check fails if `twvUSD < minHealthFactor * totalDebtUSD`
     /// @return enabledTokensMaskAfter Bitmask of account's enabled collateral tokens after potential cleanup
     /// @dev Even when `collateralHints` are specified, quoted tokens are evaluated before non-quoted ones
     /// @custom:expects Credit facade ensures that `creditAccount` is opened in this credit manager
     function fullCollateralCheck(
         address creditAccount,
         uint256 enabledTokensMask,
-        uint256[] calldata collateralHints,
-        uint16 minHealthFactor
+        uint256[] calldata collateralHints
     )
         external
         override
@@ -485,23 +486,323 @@ contract CreditManager is ICreditManager, ReentrancyGuard {
     {
         CollateralDebtData memory cdd = _calcDebtAndCollateral({
             creditAccount: creditAccount,
-            minHealthFactor: minHealthFactor,
             collateralHints: collateralHints,
             enabledTokensMask: enabledTokensMask,
             // task: CollateralCalcTask.FULL_COLLATERAL_CHECK_LAZY,
             task: CollateralCalcTask.GENERIC_PARAMS
         });
 
-        if (
-            cdd.twvUSD <
-            (cdd.totalDebtUSD * minHealthFactor) / PERCENTAGE_FACTOR
-        ) {
-            revert NotEnoughCollateralException();
-        }
+        // if (
+        //     cdd.twvUSD <
+        //     (cdd.totalDebtUSD * minHealthFactor) / PERCENTAGE_FACTOR
+        // ) {
+        //     revert NotEnoughCollateralException();
+        // }
 
         enabledTokensMaskAfter = cdd.enabledTokensMask;
         _saveEnabledTokensMask(creditAccount, enabledTokensMaskAfter); // U:[CM-18]
     }
+
+    /// @notice Returns `creditAccount`'s debt and collateral data with level of detail controlled by `task`
+    /// @param creditAccount Credit account to return data for
+    /// @param task Calculation mode, see `CollateralCalcTask` for details, can't be `FULL_COLLATERAL_CHECK_LAZY`
+    /// @return cdd A struct with debt and collateral data
+    /// @dev Reverts if account is not opened in this credit manager
+    function calcDebtAndCollateral(
+        address creditAccount,
+        CollateralCalcTask task
+    ) external override returns (CollateralDebtData memory cdd) {
+        if (task == CollateralCalcTask.FULL_COLLATERAL_CHECK_LAZY) {
+            revert IncorrectParameterException();
+        }
+
+        bool useSafePrices;
+        if (task == CollateralCalcTask.DEBT_COLLATERAL_SAFE_PRICES) {
+            task = CollateralCalcTask.DEBT_COLLATERAL;
+            useSafePrices = true;
+        }
+
+        getBorrowerOrRevert(creditAccount);
+
+        uint256[] memory collateralHints;
+        cdd = _calcDebtAndCollateral({
+            creditAccount: creditAccount,
+            enabledTokensMask: enabledTokensMaskOf(creditAccount),
+            collateralHints: collateralHints,
+            task: task
+        });
+    }
+
+    // --------------------- //
+    // CREDIT MANAGER PARAMS //
+    // --------------------- //
+
+    /// @notice Returns credit manager's fee parameters (all fields in bps)
+    /// @return _feeInterest Percentage of accrued interest taken by the protocol as profit
+    /// @return _feeLiquidation Percentage of liquidated account value taken by the protocol as profit
+    /// @return _liquidationDiscount Percentage of liquidated account value that is used to repay debt
+    /// @return _feeLiquidationExpired Percentage of liquidated expired account value taken by the protocol as profit
+    /// @return _liquidationDiscountExpired Percentage of liquidated expired account value that is used to repay debt
+    function fees()
+        external
+        view
+        override
+        returns (
+            uint16 _feeInterest,
+            uint16 _feeLiquidation,
+            uint16 _liquidationDiscount,
+            uint16 _feeLiquidationExpired,
+            uint16 _liquidationDiscountExpired
+        )
+    {
+        _feeInterest = feeInterest; // U:[CM-41]
+        _feeLiquidation = feeLiquidation; // U:[CM-41]
+        _liquidationDiscount = liquidationDiscount; // U:[CM-41]
+        _feeLiquidationExpired = feeLiquidationExpired; // U:[CM-41]
+        _liquidationDiscountExpired = liquidationDiscountExpired; // U:[CM-41]
+    }
+
+    /// @notice Returns `token`'s liquidation threshold ramp parameters
+    /// @param token Token to get parameters for
+    /// @return ltInitial LT at the beginning of the ramp in bps
+    /// @return ltFinal LT at the end of the ramp in bps
+    /// @return timestampRampStart Timestamp of the beginning of the ramp
+    /// @return rampDuration Ramp duration in seconds
+    /// @dev Reverts if `token` is not recognized as collateral in the credit manager
+    function ltParams(
+        address token
+    )
+        external
+        view
+        override
+        returns (
+            uint16 ltInitial,
+            uint16 ltFinal,
+            uint40 timestampRampStart,
+            uint24 rampDuration
+        )
+    {
+        uint256 tokenMask = getTokenMaskOrRevert(token);
+        CollateralTokenData memory tokenData = collateralTokensData[tokenMask];
+
+        return (
+            tokenData.ltInitial,
+            tokenData.ltFinal,
+            tokenData.timestampRampStart,
+            tokenData.rampDuration
+        );
+    }
+
+    /// @notice Returns collateral token's address by its mask in the credit manager
+    /// @param tokenMask Collateral token mask in the credit manager
+    /// @return token Token address
+    /// @dev Reverts if `tokenMask` doesn't correspond to any known collateral token
+    function getTokenByMask(
+        uint256 tokenMask
+    ) public view override returns (address token) {
+        token = _collateralTokenByMask({
+            tokenMask: tokenMask
+        });
+    }
+
+    /// @notice Returns collateral token's address and liquidation threshold by its mask
+    /// @param tokenMask Collateral token mask in the credit manager
+    /// @return token Token address
+    /// @dev Reverts if `tokenMask` doesn't correspond to any known collateral token
+    function collateralTokenByMask(
+        uint256 tokenMask
+    ) public view override returns (address token) {
+        return _collateralTokenByMask({tokenMask: tokenMask});
+    }
+
+    // ------------ //
+    // ACCOUNT INFO //
+    // ------------ //
+
+    /// @notice Returns an array of all credit accounts opened in this credit manager
+    function creditAccounts()
+        external
+        view
+        override
+        returns (address[] memory)
+    {
+        return creditAccountsSet.values();
+    }
+
+    /// @notice Returns chunk of up to `limit` credit accounts opened in this credit manager starting from `offset`
+    function creditAccounts(
+        uint256 offset,
+        uint256 limit
+    ) external view override returns (address[] memory result) {
+        uint256 len = creditAccountsSet.length();
+        uint256 resultLen = offset + limit > len
+            ? (offset > len ? 0 : len - offset)
+            : limit;
+
+        result = new address[](resultLen);
+        unchecked {
+            for (uint256 i = 0; i < resultLen; ++i) {
+                result[i] = creditAccountsSet.at(offset + i);
+            }
+        }
+    }
+
+    /// @notice Returns the number of open credit accounts opened in this credit manager
+    function creditAccountsLen() external view override returns (uint256) {
+        return creditAccountsSet.length();
+    }
+
+    /// @notice Returns `creditAccount`'s owner or reverts if account is not opened in this credit manager
+    function getBorrowerOrRevert(
+        address creditAccount
+    ) public view override returns (address borrower) {
+        borrower = creditAccountInfo[creditAccount].borrower;
+        if (borrower == address(0)) revert CreditAccountDoesNotExistException();
+    }
+
+    /// @notice Returns `creditAccount`'s enabled tokens mask
+    /// @dev Does not revert if `creditAccount` is not opened to this credit manager
+    function enabledTokensMaskOf(
+        address creditAccount
+    ) public view override returns (uint256) {
+        return creditAccountInfo[creditAccount].enabledTokensMask; // U:[CM-37]
+    }
+
+    /// @notice Returns `token`'s collateral mask in the credit manager
+    /// @param token Token address
+    /// @return tokenMask Collateral token mask in the credit manager
+    /// @dev Reverts if `token` is not recognized as collateral in the credit manager
+    function getTokenMaskOrRevert(
+        address token
+    ) public view override returns (uint256 tokenMask) {
+        if (token == underlying) return UNDERLYING_TOKEN_MASK;
+
+        tokenMask = tokenMasksMapInternal[token];
+        if (tokenMask == 0) revert TokenNotAllowedException();
+    }
+
+    function setCreditFacade(
+        address _creditFacade
+    ) external override creditConfiguratorOnly {
+        creditFacade = _creditFacade;
+    }
+
+    // ------------- //
+    // CONFIGURATION //
+    // ------------- //
+
+    /// @notice Adds `token` to the list of collateral tokens, see `_addToken` for details
+    function addToken(address token) external override creditConfiguratorOnly {
+        _addToken(token);
+    }
+
+    /// @notice Sets credit manager's fee parameters (all fields in bps)
+    /// @param _feeInterest Percentage of accrued interest taken by the protocol as profit
+    /// @param _feeLiquidation Percentage of liquidated account value taken by the protocol as profit
+    /// @param _liquidationDiscount Percentage of liquidated account value that is used to repay debt
+    /// @param _feeLiquidationExpired Percentage of liquidated expired account value taken by the protocol as profit
+    /// @param _liquidationDiscountExpired Percentage of liquidated expired account value that is used to repay debt
+    function setFees(
+        uint16 _feeInterest,
+        uint16 _feeLiquidation,
+        uint16 _liquidationDiscount,
+        uint16 _feeLiquidationExpired,
+        uint16 _liquidationDiscountExpired
+    )
+        external
+        override
+        creditConfiguratorOnly // U:[CM-4]
+    {
+        feeInterest = _feeInterest; // U:[CM-40]
+        feeLiquidation = _feeLiquidation; // U:[CM-40]
+        liquidationDiscount = _liquidationDiscount; // U:[CM-40]
+        feeLiquidationExpired = _feeLiquidationExpired; // U:[CM-40]
+        liquidationDiscountExpired = _liquidationDiscountExpired; // U:[CM-40]
+    }
+
+    /// @notice Sets a new max number of enabled tokens
+    /// @param _maxEnabledTokens The new max number of enabled tokens
+    function setMaxEnabledTokens(uint8 _maxEnabledTokens)
+        external
+        override
+        creditConfiguratorOnly // U: [CM-4]
+    {
+        maxEnabledTokens = _maxEnabledTokens; // U:[CM-44]
+    }
+
+    /// @notice Sets `token`'s liquidation threshold ramp parameters
+    /// @param token Token to set parameters for
+    /// @param ltInitial LT at the beginning of the ramp in bps
+    /// @param ltFinal LT at the end of the ramp in bps
+    /// @param timestampRampStart Timestamp of the beginning of the ramp
+    /// @param rampDuration Ramp duration in seconds
+    /// @dev If `token` is `underlying`, sets LT to `ltInitial` and ignores other parameters
+    /// @dev Reverts if `token` is not recognized as collateral in the credit manager
+    function setCollateralTokenData(
+        address token,
+        uint16 ltInitial,
+        uint16 ltFinal,
+        uint40 timestampRampStart,
+        uint24 rampDuration
+    )
+        external
+        override
+        creditConfiguratorOnly // U:[CM-4]
+    {
+        if (token == underlying) {
+            ltUnderlying = ltInitial; // U:[CM-42]
+        } else {
+            uint256 tokenMask = getTokenMaskOrRevert({token: token}); // U:[CM-41]
+            CollateralTokenData storage tokenData = collateralTokensData[
+                tokenMask
+            ];
+
+            tokenData.ltInitial = ltInitial; // U:[CM-42]
+            tokenData.ltFinal = ltFinal; // U:[CM-42]
+            tokenData.timestampRampStart = timestampRampStart; // U:[CM-42]
+            tokenData.rampDuration = rampDuration; // U:[CM-42]
+        }
+    }
+
+
+    /// @notice Sets the link between the adapter and the target contract
+    /// @param adapter Address of the adapter contract to use to access the third-party contract,
+    ///        passing `address(0)` will forbid accessing `targetContract`
+    /// @param targetContract Address of the third-pary contract for which the adapter is set,
+    ///        passing `address(0)` will forbid using `adapter`
+    /// @dev Reverts if `targetContract` or `adapter` is this contract's address
+    function setContractAllowance(address adapter, address targetContract)
+        external
+        override
+        creditConfiguratorOnly
+    {
+        // if (targetContract == address(this) || adapter == address(this)) {
+        //     revert TargetContractNotAllowedException();
+        // } // U:[CM-45]
+
+        // if (adapter != address(0)) {
+        //     adapterToContract[adapter] = targetContract; // U:[CM-45]
+        // }
+        // if (targetContract != address(0)) {
+        //     contractToAdapter[targetContract] = adapter; // U:[CM-45]
+        // }
+    }
+
+    /// @notice Sets a new price oracle
+    /// @param _priceOracle Address of the new price oracle
+    function setPriceOracle(
+        address _priceOracle
+    )
+        external
+        override
+        creditConfiguratorOnly // U: [CM-4]
+    {
+        priceOracle = _priceOracle; // U:[CM-46]
+    }
+
+    // --------- //
+    // INTERNALS //
+    // --------- //
 
     /// @dev Saves `creditAccount`'s `enabledTokensMask` in the storage
     /// @dev Ensures that the number of enabled tokens excluding underlying does not exceed `maxEnabledTokens`
@@ -517,19 +818,6 @@ contract CreditManager is ICreditManager, ReentrancyGuard {
             revert TooManyEnabledTokensException();
         }
         creditAccountInfo[creditAccount].enabledTokensMask = enabledTokensMask;
-    }
-
-    /// @notice Returns `token`'s collateral mask in the credit manager
-    /// @param token Token address
-    /// @return tokenMask Collateral token mask in the credit manager
-    /// @dev Reverts if `token` is not recognized as collateral in the credit manager
-    function getTokenMaskOrRevert(
-        address token
-    ) public view override returns (uint256 tokenMask) {
-        if (token == underlying) return UNDERLYING_TOKEN_MASK;
-
-        tokenMask = tokenMasksMapInternal[token];
-        if (tokenMask == 0) revert TokenNotAllowedException();
     }
 
     /// @dev Returns adapter's target contract, reverts if `msg.sender` is not a registered adapter
@@ -575,7 +863,24 @@ contract CreditManager is ICreditManager, ReentrancyGuard {
     ///      - Adds token with LT = 0
     ///      - Increases the number of collateral tokens
     /// @param token Address of the token to add
-    function _addToken(address token) internal {}
+    function _addToken(address token) internal {
+        if (tokenMasksMapInternal[token] != 0) {
+            revert TokenAlreadyAddedException();
+        }
+        if (collateralTokensCount >= 255) {
+            revert TooManyTokensException();
+        }
+
+        uint256 tokenMask = 1 << collateralTokensCount;
+        tokenMasksMapInternal[token] = tokenMask;
+
+        collateralTokensData[tokenMask].token = token;
+        collateralTokensData[tokenMask].timestampRampStart = type(uint40).max;
+
+        unchecked {
+            ++collateralTokensCount;
+        }
+    }
 
     /// @dev Returns amount of token that should be transferred to receive `amount`
     ///      Pools with fee-on-transfer underlying should override this method
@@ -605,16 +910,14 @@ contract CreditManager is ICreditManager, ReentrancyGuard {
     /// @param creditAccount Credit account to return data for
     /// @param enabledTokensMask Bitmask of account's enabled collateral tokens
     /// @param collateralHints Optional array of token masks specifying the order of checking collateral tokens
-    /// @param minHealthFactor Health factor in bps to stop the calculations after when performing collateral check
     /// @param task Calculation mode, see `CollateralCalcTask` for details
     /// @return cdd A struct with debt and collateral data
     function _calcDebtAndCollateral(
         address creditAccount,
         uint256 enabledTokensMask,
         uint256[] memory collateralHints,
-        uint16 minHealthFactor,
         CollateralCalcTask task
-    ) internal  returns (CollateralDebtData memory cdd) {
+    ) internal returns (CollateralDebtData memory cdd) {
         CreditAccountInfo storage currentCreditAccountInfo = creditAccountInfo[
             creditAccount
         ];
@@ -655,37 +958,31 @@ contract CreditManager is ICreditManager, ReentrancyGuard {
             }
         }
 
-        uint256 targetUSD = (task ==
-            CollateralCalcTask.FULL_COLLATERAL_CHECK_LAZY)
-            ? (cdd.totalDebtUSD * minHealthFactor) / PERCENTAGE_FACTOR
-            : type(uint256).max;
+        // uint256 targetUSD = (task ==
+        //     CollateralCalcTask.FULL_COLLATERAL_CHECK_LAZY)
+        //     ? (cdd.totalDebtUSD * minHealthFactor) / PERCENTAGE_FACTOR
+        //     : type(uint256).max;
 
-        uint256 tokensToDisable;
-        (cdd.totalValueUSD, cdd.twvUSD, tokensToDisable) = cdd.calcCollateral({
-            creditAccount: creditAccount,
-            twvUSDTarget: targetUSD,
-            collateralHints: collateralHints,
-            collateralTokenByMaskFn: _collateralTokenByMask,
-            convertToUSDFn: _safeConvertToUSD,
-            priceOracle: _priceOracle
-        });
-        cdd.enabledTokensMask = enabledTokensMask.disable(tokensToDisable);
+        // uint256 tokensToDisable;
+        // (cdd.totalValueUSD, cdd.twvUSD, tokensToDisable) = cdd.calcCollateral({
+        //     creditAccount: creditAccount,
+        //     twvUSDTarget: targetUSD,
+        //     collateralHints: collateralHints,
+        //     collateralTokenByMaskFn: _collateralTokenByMask,
+        //     convertToUSDFn: _safeConvertToUSD,
+        //     priceOracle: _priceOracle
+        // });
+        // cdd.enabledTokensMask = enabledTokensMask.disable(tokensToDisable);
 
-        if (task == CollateralCalcTask.FULL_COLLATERAL_CHECK_LAZY) {
-            return cdd;
-        }
+        // if (task == CollateralCalcTask.FULL_COLLATERAL_CHECK_LAZY) {
+        //     return cdd;
+        // }
 
-        cdd.totalValue = _convertFromUSD(_priceOracle, cdd.totalValueUSD, underlying);
-    }
-
-    function setCreditFacade(
-        address _creditFacade
-    )
-        external
-        override
-        creditConfiguratorOnly // U: [CM-4]
-    {
-        creditFacade = _creditFacade; // U:[CM-46]
+        // cdd.totalValue = _convertFromUSD(
+        //     _priceOracle,
+        //     cdd.totalValueUSD,
+        //     underlying
+        // );
     }
 
     /// @dev Internal wrapper for `priceOracle.convertFromUSD` call to reduce contract size
@@ -693,7 +990,7 @@ contract CreditManager is ICreditManager, ReentrancyGuard {
         address _priceOracle,
         uint256 amountInUSD,
         address token
-    ) internal  returns (uint256 amountInToken) {
+    ) internal returns (uint256 amountInToken) {
         amountInToken = IPriceOracle(_priceOracle).convertFromUSD(
             amountInUSD,
             token
