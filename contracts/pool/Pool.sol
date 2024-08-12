@@ -87,14 +87,12 @@ contract Pool is ERC4626, ERC20Permit, IPool, ReentrancyGuard {
     /// @param addressProvider_ Address provider contract address
     /// @param underlyingToken_ Pool underlying token address
     /// @param interestRateModel_ Interest rate model contract address
-    /// @param totalDebtLimit_ Initial total debt limit, `type(uint256).max` for no limit
     /// @param name_ Name of the pool
     /// @param symbol_ Symbol of the pool's LP token
     constructor(
         address addressProvider_,
         address underlyingToken_,
         address interestRateModel_,
-        uint256 totalDebtLimit_,
         string memory name_,
         string memory symbol_
     )
@@ -105,17 +103,15 @@ contract Pool is ERC4626, ERC20Permit, IPool, ReentrancyGuard {
         addressProvider = addressProvider_;
         underlyingToken = underlyingToken_;
 
-        treasury = IAddressProvider(addressProvider_).getAddressOrRevert({
-            key: AP_TREASURY
-        });
+        // treasury = IAddressProvider(addressProvider_).getAddressOrRevert({
+        //     key: AP_TREASURY
+        // });
 
         lastBaseInterestUpdate = uint40(block.timestamp);
         _baseInterestIndexLU = uint128(RAY);
 
         interestRateModel = interestRateModel_;
         emit SetInterestRateModel(interestRateModel_);
-
-        // _setTotalDebtLimit(totalDebtLimit_);
     }
 
     /// @notice Pool shares decimals, matches underlying token decimals
@@ -332,14 +328,14 @@ contract Pool is ERC4626, ERC20Permit, IPool, ReentrancyGuard {
             to: receiver,
             value: amountToUser
         });
-        if (assetsSent > amountToUser) {
-            unchecked {
-                IERC20(underlyingToken).safeTransfer({
-                    to: treasury,
-                    value: assetsSent - amountToUser
-                });
-            }
-        }
+        // if (assetsSent > amountToUser) {
+        //     unchecked {
+        //         IERC20(underlyingToken).safeTransfer({
+        //             to: treasury,
+        //             value: assetsSent - amountToUser
+        //         });
+        //     }
+        // }
         emit Withdraw(msg.sender, receiver, owner, assetsReceived, shares);
     }
 

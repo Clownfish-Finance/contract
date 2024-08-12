@@ -96,9 +96,6 @@ contract CreditManager is ICreditManager, ReentrancyGuard {
     /// @dev Set of all credit accounts opened in this credit manager
     EnumerableSet.AddressSet internal creditAccountsSet;
 
-    /// @notice Credit manager name
-    string public name;
-
     /// @dev Ensures that function caller is the credit facade
     modifier creditFacadeOnly() {
         _checkCreditFacade();
@@ -114,26 +111,27 @@ contract CreditManager is ICreditManager, ReentrancyGuard {
     /// @notice Constructor
     /// @param _addressProvider Address provider contract address
     /// @param _pool Address of the lending pool to connect this credit manager to
-    /// @param _name Credit manager name
     /// @dev Adds pool's underlying as collateral token with LT = 0
     /// @dev Sets `msg.sender` as credit configurator
-    constructor(address _addressProvider, address _pool, string memory _name) {
+    constructor(address _addressProvider, address _pool) {
         addressProvider = _addressProvider;
         pool = _pool;
 
         underlying = IPool(_pool).underlyingToken();
         _addToken(underlying);
 
-        priceOracle = IAddressProvider(addressProvider).getAddressOrRevert(
-            AP_PRICE_ORACLE
-        );
+        // priceOracle = IAddressProvider(addressProvider).getAddressOrRevert(
+        //     AP_PRICE_ORACLE
+        // );
         accountFactory = IAddressProvider(addressProvider).getAddressOrRevert(
             AP_ACCOUNT_FACTORY
         );
 
         creditConfigurator = msg.sender;
+    }
 
-        name = _name;
+    function name() external pure override returns (string memory) {
+        return "CreditManager";
     }
 
     // ------------------ //
@@ -600,9 +598,7 @@ contract CreditManager is ICreditManager, ReentrancyGuard {
     function getTokenByMask(
         uint256 tokenMask
     ) public view override returns (address token) {
-        token = _collateralTokenByMask({
-            tokenMask: tokenMask
-        });
+        token = _collateralTokenByMask({tokenMask: tokenMask});
     }
 
     /// @notice Returns collateral token's address and liquidation threshold by its mask
@@ -722,7 +718,9 @@ contract CreditManager is ICreditManager, ReentrancyGuard {
 
     /// @notice Sets a new max number of enabled tokens
     /// @param _maxEnabledTokens The new max number of enabled tokens
-    function setMaxEnabledTokens(uint8 _maxEnabledTokens)
+    function setMaxEnabledTokens(
+        uint8 _maxEnabledTokens
+    )
         external
         override
         creditConfiguratorOnly // U: [CM-4]
@@ -764,22 +762,19 @@ contract CreditManager is ICreditManager, ReentrancyGuard {
         }
     }
 
-
     /// @notice Sets the link between the adapter and the target contract
     /// @param adapter Address of the adapter contract to use to access the third-party contract,
     ///        passing `address(0)` will forbid accessing `targetContract`
     /// @param targetContract Address of the third-pary contract for which the adapter is set,
     ///        passing `address(0)` will forbid using `adapter`
     /// @dev Reverts if `targetContract` or `adapter` is this contract's address
-    function setContractAllowance(address adapter, address targetContract)
-        external
-        override
-        creditConfiguratorOnly
-    {
+    function setContractAllowance(
+        address adapter,
+        address targetContract
+    ) external override creditConfiguratorOnly {
         // if (targetContract == address(this) || adapter == address(this)) {
         //     revert TargetContractNotAllowedException();
         // } // U:[CM-45]
-
         // if (adapter != address(0)) {
         //     adapterToContract[adapter] = targetContract; // U:[CM-45]
         // }

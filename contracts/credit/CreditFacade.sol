@@ -83,9 +83,9 @@ contract CreditFacade is ICreditFacade, ReentrancyGuard {
 
         address addressProvider = ICreditManager(_creditManager)
             .addressProvider();
-        weth = IAddressProvider(addressProvider).getAddressOrRevert(
-            AP_WETH_TOKEN
-        );
+        // weth = IAddressProvider(addressProvider).getAddressOrRevert(
+        //     AP_WETH_TOKEN
+        // );
         // botList = IAddressProvider(addressProvider).getAddressOrRevert(
         //     AP_BOT_LIST,
         //     3_00
@@ -224,13 +224,13 @@ contract CreditFacade is ICreditFacade, ReentrancyGuard {
             enabledTokensMaskBefore
         );
 
-        _fullCollateralCheck({
-            creditAccount: creditAccount,
-            enabledTokensMaskBefore: enabledTokensMaskBefore,
-            fullCheckParams: fullCheckParams,
-            forbiddenBalances: forbiddenBalances,
-            forbiddenTokensMask: forbiddenTokensMask
-        });
+        // _fullCollateralCheck({
+        //     creditAccount: creditAccount,
+        //     enabledTokensMaskBefore: enabledTokensMaskBefore,
+        //     fullCheckParams: fullCheckParams,
+        //     forbiddenBalances: forbiddenBalances,
+        //     forbiddenTokensMask: forbiddenTokensMask
+        // });
     }
 
     /// @dev Multicall implementation
