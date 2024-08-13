@@ -7,4 +7,8 @@ import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol";
 
 contract UnderlyingToken is ERC20, ERC20Permit {
     constructor() ERC20("UnderlyingToken", "UDY") ERC20Permit("UnderlyingToken") {}
+
+    function mint(address to, uint256 amount) public {
+        _mint(to, amount);
+    }
 }

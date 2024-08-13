@@ -95,7 +95,7 @@ interface IPool {
 
     function totalBorrowed() external view returns (uint256);
 
-    function totalDebtLimit() external view returns (uint256);
+    function totalDebtLimit() external view returns (uint128);
 
     function creditManagerBorrowed(
         address creditManager
@@ -103,7 +103,7 @@ interface IPool {
 
     function creditManagerDebtLimit(
         address creditManager
-    ) external view returns (uint256);
+    ) external view returns (uint128);
 
     function creditManagerBorrowable(
         address creditManager

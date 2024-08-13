@@ -93,6 +93,7 @@ contract Pool is ERC4626, ERC20Permit, IPool, ReentrancyGuard {
         address addressProvider_,
         address underlyingToken_,
         address interestRateModel_,
+        uint128 totalDebtLimit_,
         string memory name_,
         string memory symbol_
     )
@@ -112,6 +113,7 @@ contract Pool is ERC4626, ERC20Permit, IPool, ReentrancyGuard {
 
         interestRateModel = interestRateModel_;
         emit SetInterestRateModel(interestRateModel_);
+        _setTotalDebtLimit(totalDebtLimit_);
     }
 
     /// @notice Pool shares decimals, matches underlying token decimals
@@ -400,8 +402,8 @@ contract Pool is ERC4626, ERC20Permit, IPool, ReentrancyGuard {
     }
 
     /// @notice Total debt limit, `type(uint256).max` means no limit
-    function totalDebtLimit() external view override returns (uint256) {
-        return 0;
+    function totalDebtLimit() external view override returns (uint128) {
+        return _totalDebt.limit;
     }
 
     /// @notice Amount borrowed by a given credit manager
@@ -414,8 +416,8 @@ contract Pool is ERC4626, ERC20Permit, IPool, ReentrancyGuard {
     /// @notice Debt limit for a given credit manager, `type(uint256).max` means no limit
     function creditManagerDebtLimit(
         address creditManager
-    ) external view override returns (uint256) {
-        return 0;
+    ) external view override returns (uint128) {
+        return _creditManagerDebt[creditManager].limit;
     }
 
     /// @notice Amount available to borrow for a given credit manager
@@ -511,7 +513,10 @@ contract Pool is ERC4626, ERC20Permit, IPool, ReentrancyGuard {
 
     /// @notice Current cumulative base interest index in ray
     function baseInterestIndex() public view override returns (uint256) {
-        return 0;
+        // return 0;
+        uint256 timestampLU = lastBaseInterestUpdate;
+        if (block.timestamp == timestampLU) return _baseInterestIndexLU;
+        return _calcBaseInterestIndex(timestampLU);
     }
 
     /// @notice Cumulative base interest index stored as of last update in ray
@@ -571,6 +576,13 @@ contract Pool is ERC4626, ERC20Permit, IPool, ReentrancyGuard {
         return
             (_totalDebt.borrowed *
                 baseInterestRate().calcLinearGrowth(timestamp)) / RAY;
+    }
+
+    /// @dev Sets new total debt limit
+    function _setTotalDebtLimit(uint128 newLimit) internal {
+        if (newLimit == _totalDebt.limit) return;
+        _totalDebt.limit = newLimit;
+        emit SetTotalDebtLimit(newLimit);
     }
 
     // --------- //
@@ -653,7 +665,10 @@ contract Pool is ERC4626, ERC20Permit, IPool, ReentrancyGuard {
     function setCreditManagerDebtLimit(
         address creditManager,
         uint256 newLimit
-    ) external override {}
+    ) external override {
+        _creditManagerDebt[creditManager].limit = newLimit.toUint128();
+        emit SetCreditManagerDebtLimit(creditManager, newLimit);
+    }
 
     function setWithdrawFee(uint256 newWithdrawFee) external override {}
 }
