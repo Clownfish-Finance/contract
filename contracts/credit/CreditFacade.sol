@@ -488,14 +488,12 @@ contract CreditFacade is ICreditFacade, ReentrancyGuard {
                     {
                         address targetContract = ICreditManager(creditManager)
                             .adapterToContract(mcall.target);
+                            
                         if (targetContract == address(0)) {
                             revert TargetContractNotAllowedException();
                         }
 
-                        // if (flags & EXTERNAL_CONTRACT_WAS_CALLED == 0) {
-                        //     flags = flags.enable(EXTERNAL_CONTRACT_WAS_CALLED);
-                        //     _setActiveCreditAccount(creditAccount);
-                        // }
+                        _setActiveCreditAccount(creditAccount);
 
                         result = mcall.target.functionCall(mcall.callData);
 
@@ -733,5 +731,10 @@ contract CreditFacade is ICreditFacade, ReentrancyGuard {
 
             // if (!success) revert ForbiddenTokenBalanceIncreasedException();
         }
+    }
+
+    /// @dev Internal wrapper for `creditManager.setActiveCreditAccount` call to reduce contract size
+    function _setActiveCreditAccount(address creditAccount) internal {
+        ICreditManager(creditManager).setActiveCreditAccount(creditAccount);
     }
 }

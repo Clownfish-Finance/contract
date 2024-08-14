@@ -42,9 +42,6 @@ contract CreditManager is ICreditManager, ReentrancyGuard {
     /// @notice Address of the connected credit facade
     address public creditFacade;
 
-    /// @notice Address of the connected credit configurator
-    address public creditConfigurator;
-
     /// @notice Price oracle contract address
     address public priceOracle;
 
@@ -102,17 +99,10 @@ contract CreditManager is ICreditManager, ReentrancyGuard {
         _;
     }
 
-    /// @dev Ensures that function caller is the credit configurator
-    modifier creditConfiguratorOnly() {
-        _checkCreditConfigurator();
-        _;
-    }
-
     /// @notice Constructor
     /// @param _addressProvider Address provider contract address
     /// @param _pool Address of the lending pool to connect this credit manager to
     /// @dev Adds pool's underlying as collateral token with LT = 0
-    /// @dev Sets `msg.sender` as credit configurator
     constructor(address _addressProvider, address _pool) {
         addressProvider = _addressProvider;
         pool = _pool;
@@ -126,8 +116,6 @@ contract CreditManager is ICreditManager, ReentrancyGuard {
         accountFactory = IAddressProvider(addressProvider).getAddressOrRevert(
             AP_ACCOUNT_FACTORY
         );
-
-        creditConfigurator = msg.sender;
     }
 
     function name() external pure override returns (string memory) {
@@ -415,7 +403,7 @@ contract CreditManager is ICreditManager, ReentrancyGuard {
             token: token,
             spender: targetContract,
             amount: amount
-        }); // U:[CM-14]
+        });
     }
 
     /// @notice Instructs active credit account to call adapter's target contract with provided data
@@ -679,7 +667,7 @@ contract CreditManager is ICreditManager, ReentrancyGuard {
 
     function setCreditFacade(
         address _creditFacade
-    ) external override creditConfiguratorOnly {
+    ) external override  {
         creditFacade = _creditFacade;
     }
 
@@ -688,7 +676,7 @@ contract CreditManager is ICreditManager, ReentrancyGuard {
     // ------------- //
 
     /// @notice Adds `token` to the list of collateral tokens, see `_addToken` for details
-    function addToken(address token) external override creditConfiguratorOnly {
+    function addToken(address token) external override  {
         _addToken(token);
     }
 
@@ -707,7 +695,7 @@ contract CreditManager is ICreditManager, ReentrancyGuard {
     )
         external
         override
-        creditConfiguratorOnly // U:[CM-4]
+         // U:[CM-4]
     {
         feeInterest = _feeInterest; // U:[CM-40]
         feeLiquidation = _feeLiquidation; // U:[CM-40]
@@ -723,7 +711,7 @@ contract CreditManager is ICreditManager, ReentrancyGuard {
     )
         external
         override
-        creditConfiguratorOnly // U: [CM-4]
+         // U: [CM-4]
     {
         maxEnabledTokens = _maxEnabledTokens; // U:[CM-44]
     }
@@ -745,7 +733,7 @@ contract CreditManager is ICreditManager, ReentrancyGuard {
     )
         external
         override
-        creditConfiguratorOnly // U:[CM-4]
+         // U:[CM-4]
     {
         if (token == underlying) {
             ltUnderlying = ltInitial; // U:[CM-42]
@@ -767,20 +755,12 @@ contract CreditManager is ICreditManager, ReentrancyGuard {
     ///        passing `address(0)` will forbid accessing `targetContract`
     /// @param targetContract Address of the third-pary contract for which the adapter is set,
     ///        passing `address(0)` will forbid using `adapter`
-    /// @dev Reverts if `targetContract` or `adapter` is this contract's address
     function setContractAllowance(
         address adapter,
         address targetContract
-    ) external override creditConfiguratorOnly {
-        // if (targetContract == address(this) || adapter == address(this)) {
-        //     revert TargetContractNotAllowedException();
-        // } // U:[CM-45]
-        // if (adapter != address(0)) {
-        //     adapterToContract[adapter] = targetContract; // U:[CM-45]
-        // }
-        // if (targetContract != address(0)) {
-        //     contractToAdapter[targetContract] = adapter; // U:[CM-45]
-        // }
+    ) external override  {
+        adapterToContract[adapter] = targetContract;
+        contractToAdapter[targetContract] = adapter;
     }
 
     /// @notice Sets a new price oracle
@@ -790,7 +770,7 @@ contract CreditManager is ICreditManager, ReentrancyGuard {
     )
         external
         override
-        creditConfiguratorOnly // U: [CM-4]
+         // U: [CM-4]
     {
         priceOracle = _priceOracle; // U:[CM-46]
     }
@@ -1042,11 +1022,5 @@ contract CreditManager is ICreditManager, ReentrancyGuard {
 
     function _checkCreditFacade() private view {
         if (msg.sender != creditFacade) revert CallerNotCreditFacadeException();
-    }
-
-    /// @dev Reverts if `msg.sender` is not the credit configurator
-    function _checkCreditConfigurator() private view {
-        if (msg.sender != creditConfigurator)
-            revert CallerNotConfiguratorException();
     }
 }

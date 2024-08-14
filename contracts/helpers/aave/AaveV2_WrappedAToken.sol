@@ -101,7 +101,7 @@ contract WrappedAToken is ERC20 {
         uint256 assets
     ) external returns (uint256 shares) {
         ERC20(underlying).safeTransferFrom(msg.sender, address(this), assets);
-        ILendingPool(lendingPool).deposit(underlying, assets, address(this), 0); // U:[WAT-6]
+        ILendingPool(lendingPool).deposit(underlying, assets, address(this)); // U:[WAT-6]
         _resetAllowance(); // U:[WAT-6]
         shares = _deposit(assets); // U:[WAT-6]
     }

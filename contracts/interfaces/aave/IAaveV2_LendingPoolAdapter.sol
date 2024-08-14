@@ -5,7 +5,7 @@ import {IAdapter} from "../IAdapter.sol";
 
 /// @title Aave V2 LendingPool adapter interface
 interface IAaveV2_LendingPoolAdapter is IAdapter {
-    function deposit(address asset, uint256 amount, address, uint16)
+    function deposit(address asset, uint256 amount)
         external
         returns (uint256 tokensToEnable, uint256 tokensToDisable);
 

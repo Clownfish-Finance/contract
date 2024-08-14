@@ -112,7 +112,7 @@ interface ICreditManager {
 
     function creditFacade() external view returns (address);
 
-    function creditConfigurator() external view returns (address);
+    // function creditConfigurator() external view returns (address);
 
     function addressProvider() external view returns (address);
 

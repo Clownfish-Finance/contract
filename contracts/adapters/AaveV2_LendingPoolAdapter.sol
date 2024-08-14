@@ -19,6 +19,7 @@ contract AaveV2_LendingPoolAdapter is AbstractAdapter, IAaveV2_LendingPoolAdapte
     /// @dev Returns aToken address for given underlying token
     function _aToken(address underlying) internal view returns (address) {
         return ILendingPool(targetContract).getReserveData(underlying).aTokenAddress;
+        // return ILendingPool(targetContract).getReserveData(underlying);
     }
 
     // -------- //
@@ -30,7 +31,7 @@ contract AaveV2_LendingPoolAdapter is AbstractAdapter, IAaveV2_LendingPoolAdapte
     /// @param amount Amount of underlying tokens to deposit
     /// @dev Last two parameters are ignored as `onBehalfOf` can only be credit account,
     ///      and `referralCode` is set to zero
-    function deposit(address asset, uint256 amount, address, uint16)
+    function deposit(address asset, uint256 amount)
         external
         override
         creditFacadeOnly
@@ -72,7 +73,7 @@ contract AaveV2_LendingPoolAdapter is AbstractAdapter, IAaveV2_LendingPoolAdapte
         (tokensToEnable, tokensToDisable,) = _executeSwapSafeApprove(
             asset,
             _aToken(asset),
-            abi.encodeCall(ILendingPool.deposit, (asset, amount, creditAccount, 0)),
+            abi.encodeCall(ILendingPool.deposit, (asset, amount, creditAccount)),
             disableTokenIn
         ); 
     }
