@@ -12,25 +12,9 @@ struct DebtLimits {
     uint128 maxDebt;
 }
 
-/// @notice Info on bad debt liquidation losses packed into a single slot
-/// @param currentCumulativeLoss Current cumulative loss from bad debt liquidations
-/// @param maxCumulativeLoss Max cumulative loss incurred before the facade gets paused
-struct CumulativeLossParams {
-    uint128 currentCumulativeLoss;
-    uint128 maxCumulativeLoss;
-}
-
 /// @notice Collateral check params
-/// @param collateralHints Optional array of token masks to check first to reduce the amount of computation
-///        when known subset of account's collateral tokens covers all the debt
-/// @param enabledTokensMaskAfter Bitmask of account's enabled collateral tokens after the multicall
-/// @param revertOnForbiddenTokens Whether to revert on enabled forbidden tokens after the multicall
-/// @param useSafePrices Whether to use safe pricing (min of main and reserve feeds) when evaluating collateral
 struct FullCheckParams {
-    uint256[] collateralHints;
     uint256 enabledTokensMaskAfter;
-    bool revertOnForbiddenTokens;
-    bool useSafePrices;
 }
 
 /// @title Credit facade  interface
@@ -49,14 +33,6 @@ interface ICreditFacade {
     event CloseCreditAccount(
         address indexed creditAccount,
         address indexed borrower
-    );
-
-    /// @notice Emitted when account is liquidated
-    event LiquidateCreditAccount(
-        address indexed creditAccount,
-        address indexed liquidator,
-        address to,
-        uint256 remainingFunds
     );
 
     /// @notice Emitted when account's debt is increased
@@ -110,91 +86,24 @@ interface ICreditFacade {
 
     function creditManager() external view returns (address);
 
-    // function degenNFT() external view returns (address);
 
-    function weth() external view returns (address);
 
-    // function botList() external view returns (address);
-
-    function maxDebtPerBlockMultiplier() external view returns (uint8);
-
-    // function maxQuotaMultiplier() external view returns (uint256);
-
-    // function expirable() external view returns (bool);
-
-    function expirationDate() external view returns (uint40);
-
-    function debtLimits()
-        external
-        view
-        returns (uint128 minDebt, uint128 maxDebt);
-
-    function lossParams()
-        external
-        view
-        returns (uint128 currentCumulativeLoss, uint128 maxCumulativeLoss);
-
-    function forbiddenTokenMask() external view returns (uint256);
-
-    function canLiquidateWhilePaused(address) external view returns (bool);
 
     // ------------------ //
     // ACCOUNT MANAGEMENT //
     // ------------------ //
 
     function openCreditAccount(
-        address onBehalfOf,
-        MultiCall[] calldata calls
-        // uint256 referralCode
+        address onBehalfOf
     ) external payable returns (address creditAccount);
-
-    function closeCreditAccount(
-        address creditAccount,
-        MultiCall[] calldata calls
-    ) external payable;
-
-    // function liquidateCreditAccount(
-    //     address creditAccount,
-    //     address to,
-    //     MultiCall[] calldata calls
-    // ) external;
 
     function multicall(
         address creditAccount,
         MultiCall[] calldata calls
-    ) external payable;
+    ) external;
 
-    // function botMulticall(
-    //     address creditAccount,
-    //     MultiCall[] calldata calls
-    // ) external;
-
-    // function setBotPermissions(
-    //     address creditAccount,
-    //     address bot,
-    //     uint192 permissions
-    // ) external;
 
     // ------------- //
     // CONFIGURATION //
     // ------------- //
-
-    // function setExpirationDate(uint40 newExpirationDate) external;
-
-    // function setDebtLimits(
-    //     uint128 newMinDebt,
-    //     uint128 newMaxDebt,
-    //     uint8 newMaxDebtPerBlockMultiplier
-    // ) external;
-
-    // function setBotList(address newBotList) external;
-
-    // function setCumulativeLossParams(
-    //     uint128 newMaxCumulativeLoss,
-    //     bool resetCumulativeLoss
-    // ) external;
-
-    // function setTokenAllowance(address token) external;
-
-    // function setEmergencyLiquidator(address liquidator) external;
 }

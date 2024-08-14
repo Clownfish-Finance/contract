@@ -464,12 +464,6 @@ contract Pool is ERC4626, ERC20Permit, IPool, ReentrancyGuard {
 
     /// @notice Updates pool state to indicate debt repayment, can only be called by credit managers
     ///         after transferring underlying from a credit account to the pool.
-    ///         - If transferred amount exceeds debt principal + base interest + quota interest,
-    ///           the difference is deemed protocol's profit and the respective number of shares
-    ///           is minted to the treasury.
-    ///         - If, however, transferred amount is insufficient to repay debt and interest,
-    ///           which may only happen during liquidation, treasury's shares are burned to
-    ///           cover as much of the loss as possible.
     /// @param repaidAmount Amount of debt principal repaid
     /// @param profit Pool's profit in underlying after repaying
     /// @param loss Pool's loss in underlying after repaying

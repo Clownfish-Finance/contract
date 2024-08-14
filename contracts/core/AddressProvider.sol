@@ -8,9 +8,7 @@ import "../interfaces/IAddressProvider.sol";
 contract AddressProvider is IAddressProvider {
     /// @notice Mapping from key to contract addresses
     mapping(bytes32 => address) public override addresses;
-
-    constructor() {}
-
+    
     /// @notice Returns the address of a contract with a given key and version
     function getAddressOrRevert(
         bytes32 key

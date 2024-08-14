@@ -189,7 +189,7 @@ describe("Test", function () {
   //     account1,
   //   } = await loadFixture(deploy);
   //   let creditAccount1;
-  //   await creditFacade.openCreditAccount(account1, []);
+  //   await creditFacade.openCreditAccount(account1);
   //   creditFacade.on(
   //     "OpenCreditAccount",
   //     (creditAccount, onBehalfOf, caller) => {
@@ -218,85 +218,7 @@ describe("Test", function () {
   //   );
   // });
 
-  // it("deposit liquidity & borrow debt multicall", async function () {
-  //   const {
-  //     creditFacade,
-  //     accountFactory,
-  //     underlyingToken,
-  //     pool,
-  //     creditManager,
-  //     iCreditFacadeMulticall,
-  //     account1,
-  //     account2,
-  //   } = await loadFixture(deploy);
-
-  //   let creditAccount1, creditAccount2;
-
-  //   creditFacade.on(
-  //     "OpenCreditAccount",
-  //     (creditAccount, onBehalfOf, caller) => {
-  //       if (onBehalfOf === account1.address) {
-  //         creditAccount1 = creditAccount;
-  //       } else {
-  //         creditAccount2 = creditAccount;
-  //       }
-  //     }
-  //   );
-
-  //   await creditFacade.openCreditAccount(account1, []);
-  //   await creditFacade.openCreditAccount(account2, []);
-
-  //   await delay(1000);
-  //   // crdit account
-  //   console.log("creditAccount1", creditAccount1);
-  //   console.log("creditAccount2", creditAccount2);
-
-  //   //a1, a2 mint 100 ETH underlyingToken
-  //   const initMintAmount = hre.ethers.parseEther("100");
-  //   await underlyingToken.mint(account1.address, initMintAmount);
-  //   await underlyingToken.approve(creditManager.target, initMintAmount);
-  //   await underlyingToken
-  //     .connect(account2)
-  //     .mint(account2.address, initMintAmount);
-  //   await underlyingToken
-  //     .connect(account2)
-  //     .approve(pool.target, initMintAmount);
-
-  //   //a2 deposit 50 ETH underlyingToken to pool, exchange to 50 poolToken
-  //   await pool
-  //     .connect(account2)
-  //     .deposit(hre.ethers.parseEther("50"), account2.address);
-  //   await delay(1000);
-  //   const a2PoolBalance = await pool.balanceOf(account2);
-  //   console.log("a2PoolBalance: ", hre.ethers.formatEther(a2PoolBalance));
-
-  //   //a1 borrow 10 ETH underlyingToken
-  //   const increaseDebtCallData = iCreditFacadeMulticall.encodeFunctionData(
-  //     "increaseDebt",
-  //     [hre.ethers.parseEther("10")]
-  //   );
-
-  //   const callData = [
-  //     {
-  //       target: creditFacade,
-  //       callData: increaseDebtCallData,
-  //     },
-  //   ];
-
-  //   await creditFacade.multicall(creditAccount1, callData);
-  //   await delay(1000);
-  //   const creditManagerBorrow = await pool.creditManagerBorrowed(
-  //     creditManager.target
-  //   );
-  //   console.log(
-  //     "creditManagerBorrow on pool",
-  //     hre.ethers.formatEther(creditManagerBorrow)
-  //   );
-
-  //   await printCreditAccountUTBalance(creditAccount1, creditAccount2, underlyingToken);
-  // });
-
-  it("enable and disable token multicall", async function () {
+  it("deposit liquidity & borrow debt multicall", async function () {
     const {
       creditFacade,
       accountFactory,
@@ -305,51 +227,129 @@ describe("Test", function () {
       creditManager,
       iCreditFacadeMulticall,
       account1,
+      account2,
     } = await loadFixture(deploy);
-    // init creditAccount
-    let creditAccount1;
-    await creditFacade.openCreditAccount(account1, []);
+
+    let creditAccount1, creditAccount2;
+
     creditFacade.on(
       "OpenCreditAccount",
       (creditAccount, onBehalfOf, caller) => {
-        creditAccount1 = creditAccount;
-        console.log("set creditAccount1", creditAccount1);
+        if (onBehalfOf === account1.address) {
+          creditAccount1 = creditAccount;
+        } else {
+          creditAccount2 = creditAccount;
+        }
       }
     );
+
+    await creditFacade.openCreditAccount(account1);
+    await creditFacade.openCreditAccount(account2);
+
     await delay(1000);
-    // check enabledTokensMaskOf
-    const ca1EnableTokensMask = await creditManager.enabledTokensMaskOf(
-      creditAccount1
+    // crdit account
+    console.log("creditAccount1", creditAccount1);
+    console.log("creditAccount2", creditAccount2);
+
+    //a1, a2 mint 100 ETH underlyingToken
+    const initMintAmount = hre.ethers.parseEther("100");
+    await underlyingToken.mint(account1.address, initMintAmount);
+    await underlyingToken.approve(creditManager.target, initMintAmount);
+    await underlyingToken
+      .connect(account2)
+      .mint(account2.address, initMintAmount);
+    await underlyingToken
+      .connect(account2)
+      .approve(pool.target, initMintAmount);
+
+    //a2 deposit 50 ETH underlyingToken to pool, exchange to 50 poolToken
+    await pool
+      .connect(account2)
+      .deposit(hre.ethers.parseEther("50"), account2.address);
+    await delay(1000);
+    const a2PoolBalance = await pool.balanceOf(account2);
+    console.log("a2PoolBalance: ", hre.ethers.formatEther(a2PoolBalance));
+
+    //a1 borrow 10 ETH underlyingToken
+    const increaseDebtCallData = iCreditFacadeMulticall.encodeFunctionData(
+      "increaseDebt",
+      [hre.ethers.parseEther("10")]
     );
-    console.log("ca1EnableTokensMask", ca1EnableTokensMask);
-    // new token
-    const testToken = await hre.ethers.deployContract("Token", [
-      "Test Token",
-      "TEST",
-    ]);
-    await creditManager.addToken(testToken);
-    const testTokenMask = await creditManager.getTokenMaskOrRevert(testToken);
-    console.log("testTokenMask", testTokenMask);
-    // encode multicall
-    const enableTokenCallData = iCreditFacadeMulticall.encodeFunctionData(
-      "enableToken",
-      [testToken.target]
-    );
+
     const callData = [
       {
         target: creditFacade,
-        callData: enableTokenCallData,
+        callData: increaseDebtCallData,
       },
     ];
+
     await creditFacade.multicall(creditAccount1, callData);
     await delay(1000);
-
-    // check enabledTokensMaskOf
-    const afterCA1EnableTokensMask = await creditManager.enabledTokensMaskOf(
-      creditAccount1
+    const creditManagerBorrow = await pool.creditManagerBorrowed(
+      creditManager
     );
-    console.log("afterCA1EnableTokensMask", afterCA1EnableTokensMask);
+    console.log(
+      "creditManagerBorrow on pool",
+      hre.ethers.formatEther(creditManagerBorrow)
+    );
+
+    await printCreditAccountUTBalance(creditAccount1, creditAccount2, underlyingToken);
   });
+
+  // it("enable and disable token multicall", async function () {
+  //   const {
+  //     creditFacade,
+  //     accountFactory,
+  //     underlyingToken,
+  //     pool,
+  //     creditManager,
+  //     iCreditFacadeMulticall,
+  //     account1,
+  //   } = await loadFixture(deploy);
+  //   // init creditAccount
+  //   let creditAccount1;
+  //   await creditFacade.openCreditAccount(account1);
+  //   creditFacade.on(
+  //     "OpenCreditAccount",
+  //     (creditAccount, onBehalfOf, caller) => {
+  //       creditAccount1 = creditAccount;
+  //       console.log("set creditAccount1", creditAccount1);
+  //     }
+  //   );
+  //   await delay(1000);
+  //   // check enabledTokensMaskOf
+  //   const ca1EnableTokensMask = await creditManager.enabledTokensMaskOf(
+  //     creditAccount1
+  //   );
+  //   console.log("ca1EnableTokensMask", ca1EnableTokensMask);
+  //   // new token
+  //   const testToken = await hre.ethers.deployContract("Token", [
+  //     "Test Token",
+  //     "TEST",
+  //   ]);
+  //   await creditManager.addToken(testToken);
+  //   const testTokenMask = await creditManager.getTokenMaskOrRevert(testToken);
+  //   console.log("testTokenMask", testTokenMask);
+  //   // encode multicall
+  //   const enableTokenCallData = iCreditFacadeMulticall.encodeFunctionData(
+  //     "enableToken",
+  //     [testToken.target]
+  //   );
+  //   const callData = [
+  //     {
+  //       target: creditFacade,
+  //       callData: enableTokenCallData,
+  //     },
+  //   ];
+  //   await creditFacade.multicall(creditAccount1, callData);
+  //   await delay(1000);
+
+  //   // check enabledTokensMaskOf
+  //   const afterCA1EnableTokensMask = await creditManager.enabledTokensMaskOf(
+  //     creditAccount1
+  //   );
+  //   console.log("afterCA1EnableTokensMask", afterCA1EnableTokensMask);
+  // });
 });
 
 async function printCreditAccountUTBalance(
