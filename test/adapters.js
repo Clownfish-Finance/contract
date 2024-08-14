@@ -11,10 +11,6 @@ const ICreditFacadeMulticallABI = [
   "function addCollateral(address token, uint256 amount) external",
 ];
 
-// const ILendingPoolABI = [
-//     "function deposit(address asset, uint256 amount, address onBehalfOf) external"
-// ]
-
 function setupEventListeners({
   creditFacade,
   accountFactory,
