@@ -5,13 +5,13 @@ pragma solidity ^0.8.17;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-import {RAY} from "../../../libraries/Constants.sol";
+import {RAY} from "../../libraries/Constants.sol";
 
-import {AbstractAdapter} from "../../AbstractAdapter.sol";
-import {AdapterType} from "../../../sdk-gov/contracts/AdapterType.sol";
+import {AbstractAdapter} from "../../adapters/AbstractAdapter.sol";
+import {AdapterType} from "../../sdk-gov/contracts/AdapterType.sol";
 
-import {IUniswapV2Router02} from "./interface/IUniswapV2Router02.sol";
-import {IUniswapV2Adapter, UniswapV2PairStatus} from "../../../interfaces/uniswap/IUniswapV2Adapter.sol";
+import {IUniswapV2Router02} from "../../integrations/uniswap/interfaces/IUniswapV2Router02.sol";
+import {IUniswapV2Adapter, UniswapV2PairStatus} from "../../interfaces/uniswap/IUniswapV2Adapter.sol";
 
 /// @title Uniswap V2 Router adapter
 /// @notice Implements logic allowing CAs to perform swaps via Uniswap V2 and its forks

@@ -2,9 +2,9 @@
 pragma solidity ^0.8.17;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "./integrations/aave/IAToken.sol";
-import "./integrations/aave/DataTypes.sol";
-import "./integrations/aave/ILendingPool.sol";
+import "../../integrations/aave/IAToken.sol";
+import "../../integrations/aave/DataTypes.sol";
+import "../../integrations/aave/ILendingPool.sol";
 import "./ATokenMock.sol";
 
 /// @notice Lending pool reserve data

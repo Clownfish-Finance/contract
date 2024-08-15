@@ -2,9 +2,9 @@
 pragma solidity ^0.8.17;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "./AbstractAdapter.sol";
-import "./integrations/aave/ILendingPool.sol";
-import "../interfaces/aave/IAaveV2_LendingPoolAdapter.sol";
+import "../AbstractAdapter.sol";
+import "../../integrations/aave/ILendingPool.sol";
+import "../../interfaces/aave/IAaveV2_LendingPoolAdapter.sol";
 
 /// @title Aave V2 LendingPool adapter
 /// @notice Implements logic allowing CAs to interact with Aave's lending pool

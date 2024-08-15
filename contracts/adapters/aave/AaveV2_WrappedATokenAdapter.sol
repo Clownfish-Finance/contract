@@ -3,9 +3,9 @@ pragma solidity ^0.8.17;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-import "./AbstractAdapter.sol";
-import "../helpers/aave/AaveV2_WrappedAToken.sol";
-import "../interfaces/aave/IAaveV2_WrappedATokenAdapter.sol";
+import "../AbstractAdapter.sol";
+import "../../helpers/aave/AaveV2_WrappedAToken.sol";
+import "../../interfaces/aave/IAaveV2_WrappedATokenAdapter.sol";
 
 /// @title Aave V2 Wrapped aToken adapter
 /// @notice Implements logic allowing CAs to convert between waTokens, aTokens and underlying tokens
