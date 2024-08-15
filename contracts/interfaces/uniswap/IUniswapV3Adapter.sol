@@ -5,7 +5,7 @@ pragma solidity ^0.8.17;
 
 import {IAdapter} from "../IAdapter.sol";
 
-import {ISwapRouter} from "../../integrations/uniswap/IUniswapV3.sol";
+import {ISwapRouter} from "../../integrations/uniswap/interfaces/IUniswapV3.sol";
 
 struct UniswapV3PoolStatus {
     address token0;
