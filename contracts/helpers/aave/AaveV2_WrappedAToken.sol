@@ -4,8 +4,8 @@ pragma solidity ^0.8.17;
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
-import "../../adapters/integrations/aave/IAToken.sol";
-import "../../adapters/integrations/aave/ILendingPool.sol";
+import "../../integrations/aave/IAToken.sol";
+import "../../integrations/aave/ILendingPool.sol";
 
 uint256 constant WAD = 1e18;
 

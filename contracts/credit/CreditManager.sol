@@ -568,31 +568,6 @@ contract CreditManager is ICreditManager, ReentrancyGuard {
         }
     }
 
-    // function _collateralTokenByMask(
-    //     uint256 tokenMask
-    // ) internal view returns (address token) {
-    //     if (tokenMask == UNDERLYING_TOKEN_MASK) {
-    //         token = underlying;
-    //     } else {
-    //         CollateralTokenData storage tokenData = collateralTokensData[
-    //             tokenMask
-    //         ];
-
-    //         bytes32 rawData;
-    //         assembly {
-    //             rawData := sload(tokenData.slot)
-    //             token := and(
-    //                 rawData,
-    //                 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
-    //             )
-    //         }
-
-    //         if (token == address(0)) {
-    //             revert TokenNotAllowedException();
-    //         }
-    //     }
-    // }
-
     function _checkCreditFacade() private view {
         if (msg.sender != creditFacade) revert CallerNotCreditFacadeException();
     }

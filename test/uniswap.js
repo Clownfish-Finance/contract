@@ -1,7 +1,7 @@
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
 
-describe("Gearbox Uniswap V3 Adapter Test", function () {
+describe("Uniswap V3 Adapter Test", function () {
   let creditManager, creditFacade, uniswapV3Adapter;
   let owner, user;
 

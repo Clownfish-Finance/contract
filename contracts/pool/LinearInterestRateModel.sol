@@ -4,7 +4,7 @@ pragma solidity ^0.8.17;
 import "../interfaces/ILinearInterestRateModel.sol";
 
 /// @title Linear interest rate model e:\bnb_hackton\core-\contracts\pool\LinearInterestRateModel.sol
-/// @notice Gearbox  uses a two-point linear interest rate model in its pools.
+/// @notice uses a two-point linear interest rate model in its pools.
 ///         Unlike previous single-point models, it has a new intermediate slope between the obtuse and steep regions
 ///         which serves to decrease interest rate jumps due to large withdrawals.
 ///         The model can also be configured to prevent borrowing after in the steep region (over `U_2` utilization)

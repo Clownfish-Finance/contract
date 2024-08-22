@@ -1,6 +1,4 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-// Gearbox Protocol. Generalized leverage for DeFi protocols
-// (c) Gearbox Foundation, 2023.
 pragma solidity ^0.8.17;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -16,9 +14,6 @@ import {IUniswapV2Adapter, UniswapV2PairStatus} from "../../interfaces/uniswap/I
 /// @title Uniswap V2 Router adapter
 /// @notice Implements logic allowing CAs to perform swaps via Uniswap V2 and its forks
 contract UniswapV2Adapter is AbstractAdapter, IUniswapV2Adapter {
-    AdapterType public constant override _gearboxAdapterType = AdapterType.UNISWAP_V2_ROUTER;
-    uint16 public constant override _gearboxAdapterVersion = 3_00;
-
     /// @dev Mapping from (token0, token1) to whether the pair can be traded through the adapter
     mapping(address => mapping(address => bool)) internal _pairStatus;
 
@@ -161,7 +156,6 @@ contract UniswapV2Adapter is AbstractAdapter, IUniswapV2Adapter {
     function setPairStatusBatch(UniswapV2PairStatus[] calldata pairs)
         external
         override
-        configuratorOnly // U:[UNI2-6]
     {
         uint256 len = pairs.length;
         unchecked {
